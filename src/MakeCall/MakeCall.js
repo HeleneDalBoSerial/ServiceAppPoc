@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 import {
   CallClient,
   LocalVideoStream,
@@ -235,7 +235,7 @@ export default class MakeCall extends React.Component {
       const userIdsArray = this.destinationUserIds.value.split(",");
       const phoneIdsArray = this.destinationPhoneIds.value.split(",");
 
-      userIdsArray.forEach((userId, index) => {
+      userIdsArray.forEach((userId) => {
         if (userId) {
           userId = userId.trim();
           if (userId === "8:echo123") {
@@ -253,7 +253,7 @@ export default class MakeCall extends React.Component {
         }
       });
 
-      phoneIdsArray.forEach((phoneNumberId, index) => {
+      phoneIdsArray.forEach((phoneNumberId) => {
         if (phoneNumberId) {
           phoneNumberId = phoneNumberId.trim();
           phoneNumberId = createIdentifierFromRawId(phoneNumberId);
@@ -483,7 +483,7 @@ export default class MakeCall extends React.Component {
         }),
       });
     }
-    if (!!options.video) {
+    if (options.video) {
       try {
         if (!cameraDevice || cameraDevice?.id === "camera:") {
           throw new Error("No camera devices found.");
@@ -1029,8 +1029,8 @@ this.deviceManager.on('selectedSpeakerChanged', () => { console.log(this.deviceM
                       <h3 className="mb-1">Place a call</h3>
                       <div>Enter an Identity to make a call to.</div>
                       <div>
-                        You can specify multiple Identities to call by using ","
-                        separated values.
+                        You can specify multiple Identities to call by using
+                        comma separated values.
                       </div>
                       <div>
                         If calling a Phone Identity, your Alternate Caller Id

@@ -2,7 +2,6 @@ import React from "react";
 import {
   TextField,
   PrimaryButton,
-  Checkbox,
   MessageBar,
   MessageBarType,
 } from "office-ui-fabric-react";
@@ -11,8 +10,12 @@ import { utils } from "../Utils/Utils";
 import { v4 as uuid } from "uuid";
 import OneSignal from "react-onesignal";
 import * as config from "../../clientConfig.json";
-import { TurnConfiguration } from "../MakeCall/NetworkConfiguration/TurnConfiguration";
-import { ProxyConfiguration } from "../MakeCall/NetworkConfiguration/ProxyConfiguration";
+import {
+  AzureCommunicationTokenCredential,
+  createIdentifierFromRawId,
+} from "@azure/communication-common";
+import { setLogLevel } from "@azure/logger";
+import { CallClient } from "@azure/communication-calling";
 
 export default class Login extends React.Component {
   constructor(props) {
@@ -35,7 +38,6 @@ export default class Login extends React.Component {
       initializedOneSignal: false,
       subscribedForPushNotifications: false,
       initializeCallAgentAfterPushRegistration: true,
-      showUserProvisioningAndSdkInitializationCode: false,
       showSpinner: false,
       loginWarningMessage: undefined,
       loginErrorMessage: undefined,
@@ -136,7 +138,7 @@ export default class Login extends React.Component {
       (this.state.subscribedForPushNotifications &&
         this.state.initializeCallAgentAfterPushRegistration)
     ) {
-      await this.props.onLoggedIn({
+      await this.handleLogIn({
         communicationUserId:
           this.userDetailsResponse.userId.communicationUserId,
         token: this.userDetailsResponse.communicationUserToken.token,
@@ -188,29 +190,6 @@ export default class Login extends React.Component {
     }
   }
 
-  async teamsUserOAuthLogin() {
-    try {
-      this.setState({ isTeamsUser: true });
-      this.setState({ showSpinner: true });
-      this.userDetailsResponse =
-        this.teamsUserEmail && this.teamsUserPassword
-          ? await utils.teamsM365Login(
-              this.teamsUserEmail,
-              this.teamsUserPassword
-            )
-          : await utils.teamsPopupLogin();
-      this.teamsUserEmail = this.teamsUserPassword = "";
-      await this.setupLoginStates();
-    } catch (error) {
-      this.setState({
-        loginErrorMessage: error.message,
-      });
-      console.log(error);
-    } finally {
-      this.setState({ showSpinner: false });
-    }
-  }
-
   async handlePushNotification(event) {
     try {
       if (!this.callAgent && !!event.data.incomingCallContext) {
@@ -230,7 +209,7 @@ export default class Login extends React.Component {
             ),
           });
         }
-        this.props.onLoggedIn({
+        this.handleLogIn({
           communicationUserId:
             this.userDetailsResponse.communicationUserToken.user
               .communicationUserId,
@@ -261,9 +240,116 @@ export default class Login extends React.Component {
     }
   }
 
+  handleLogIn = async (userDetails) => {
+    if (userDetails) {
+      try {
+        const tokenCredential = new AzureCommunicationTokenCredential(
+          userDetails.token
+        );
+        this.tokenCredential = tokenCredential;
+        setLogLevel("verbose");
+
+        const proxyConfiguration = userDetails.proxy.useProxy
+          ? { url: userDetails.proxy.url }
+          : undefined;
+        const turnConfiguration =
+          userDetails.customTurn.useCustomTurn &&
+          !userDetails.customTurn.isLoading
+            ? userDetails.customTurn.turn
+            : undefined;
+        this.callClient = new CallClient({
+          diagnostics: {
+            appName: "azure-communication-services",
+            appVersion: "1.3.1-beta.1",
+            tags: [
+              "javascript_calling_sdk",
+              `#clientTag:${userDetails.clientTag}`,
+            ],
+          },
+          networkConfiguration: {
+            proxy: proxyConfiguration,
+            turn: turnConfiguration,
+          },
+        });
+
+        this.deviceManager = await this.callClient.getDeviceManager();
+        const permissions = await this.deviceManager.askDevicePermission({
+          audio: true,
+          video: true,
+        });
+        this.setState({ permissions: permissions });
+
+        this.setState({ isTeamsUser: userDetails.isTeamsUser });
+        this.setState({
+          identityMri: createIdentifierFromRawId(
+            userDetails.communicationUserId
+          ),
+        });
+        this.callAgent = this.state.isTeamsUser
+          ? await this.callClient.createTeamsCallAgent(tokenCredential)
+          : await this.callClient.createCallAgent(tokenCredential, {
+              displayName: userDetails.displayName,
+            });
+
+        this.callAgent.on("callsUpdated", (e) => {
+          console.log(`callsUpdated, added=${e.added}, removed=${e.removed}`);
+
+          e.added.forEach((call) => {
+            this.setState({ call: call });
+
+            const diagnosticChangedListener = (diagnosticInfo) => {
+              const rmsg = `UFD Diagnostic changed:
+                            Diagnostic: ${diagnosticInfo.diagnostic}
+                            Value: ${diagnosticInfo.value}
+                            Value type: ${diagnosticInfo.valueType}`;
+              if (this.state.ufdMessages.length > 0) {
+                this.setState({
+                  ufdMessages: [...this.state.ufdMessages, rmsg],
+                });
+              } else {
+                this.setState({ ufdMessages: [rmsg] });
+              }
+            };
+
+            call
+              .feature(Features.UserFacingDiagnostics)
+              .media.on("diagnosticChanged", diagnosticChangedListener);
+            call
+              .feature(Features.UserFacingDiagnostics)
+              .network.on("diagnosticChanged", diagnosticChangedListener);
+          });
+
+          e.removed.forEach((call) => {
+            if (this.state.call && this.state.call === call) {
+              this.displayCallEndReason(this.state.call.callEndReason);
+            }
+          });
+        });
+        this.callAgent.on("incomingCall", (args) => {
+          const incomingCall = args.incomingCall;
+          if (this.state.call) {
+            incomingCall.reject();
+            return;
+          }
+
+          this.setState({ incomingCall: incomingCall });
+
+          incomingCall.on("callEnded", (args) => {
+            this.displayCallEndReason(args.callEndReason);
+          });
+        });
+        this.setState({ loggedIn: true });
+        this.setCallAgent(this.callAgent);
+        this.setCallClient(this.callClient);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  };
+
   setCallAgent(callAgent) {
     this.callAgent = callAgent;
-    if (!!this._callAgentInitPromiseResolve) {
+    if (this._callAgentInitPromiseResolve) {
       this._callAgentInitPromiseResolve();
     }
   }
@@ -285,381 +371,10 @@ export default class Login extends React.Component {
     });
   }
 
-  handleProxyChecked = (e, isChecked) => {
-    this.setState({
-      ...this.state,
-      proxy: {
-        ...this.state.proxy,
-        useProxy: isChecked,
-      },
-    });
-  };
-
-  handleAddProxyUrl = (input) => {
-    if (input) {
-      this.setState({
-        ...this.state,
-        proxy: {
-          ...this.state.proxy,
-          url: input,
-        },
-      });
-    }
-  };
-
-  handleProxyUrlReset = () => {
-    this.setState({
-      ...this.state,
-      proxy: {
-        ...this.state.proxy,
-        url: "",
-      },
-    });
-  };
-
-  handleAddTurnConfig = (iceServer) => {
-    const turnConfig = this.state.customTurn.turn ?? {
-      iceServers: [],
-    };
-    turnConfig.iceServers.push(iceServer);
-
-    this.setState({
-      ...this.state,
-      customTurn: {
-        ...this.state.customTurn,
-        turn: turnConfig,
-      },
-    });
-  };
-
-  handleCustomTurnChecked = (e, isChecked) => {
-    if (isChecked) {
-      this.setState({
-        ...this.state,
-        customTurn: {
-          ...this.state.customTurn,
-          useCustomTurn: true,
-          isLoading: true,
-        },
-      });
-
-      this.getOrCreateCustomTurnConfiguration()
-        .then((res) => {
-          this.setState({
-            ...this.state,
-            customTurn: {
-              ...this.state.customTurn,
-              useCustomTurn: !!res ?? false,
-              isLoading: false,
-              turn: res,
-            },
-          });
-        })
-        .catch((error) => {
-          console.error(`Not able to fetch custom TURN: ${error}`);
-          this.setState({
-            ...this.state,
-            customTurn: {
-              ...this.state.customTurn,
-              useCustomTurn: false,
-              isLoading: false,
-              turn: null,
-            },
-          });
-        });
-    } else {
-      this.setState({
-        ...this.state,
-        customTurn: {
-          ...this.state.customTurn,
-          useCustomTurn: false,
-          isLoading: false,
-          turn: null,
-        },
-      });
-    }
-  };
-
-  getOrCreateCustomTurnConfiguration = async () => {
-    if (
-      !this.currentCustomTurnConfig ||
-      Date.now() > new Date(this.currentCustomTurnConfig.expiresOn).getTime()
-    ) {
-      // Credentials expired. Try to get new ones.
-      const response = await fetch(
-        `${window.location.protocol}//${window.location.host}/customRelayConfig`
-      );
-      const relayConfig = (await response.json()).relayConfig;
-      this.currentCustomTurnConfig = relayConfig;
-    }
-
-    const iceServers = this.currentCustomTurnConfig.iceServers.map(
-      (iceServer) => {
-        return {
-          urls: [...iceServer.urls],
-          username: iceServer.username,
-          credential: iceServer.credential,
-        };
-      }
-    );
-
-    return { iceServers };
-  };
-
-  handleTurnUrlResetToDefault = () => {
-    this.setState({
-      ...this.state,
-      customTurn: {
-        ...this.state.customTurn,
-        isLoading: true,
-      },
-    });
-
-    this.getOrCreateCustomTurnConfiguration()
-      .then((res) => {
-        this.setState({
-          ...this.state,
-          customTurn: {
-            ...this.state.customTurn,
-            isLoading: false,
-            turn: res,
-          },
-        });
-      })
-      .catch((error) => {
-        console.error(`Not able to fetch custom TURN: ${error}`);
-        this.setState({
-          ...this.state,
-          customTurn: {
-            ...this.state.customTurn,
-            useCustomTurn: false,
-            isLoading: false,
-            turn: null,
-          },
-        });
-      });
-  };
-
-  handleTurnUrlReset = () => {
-    this.setState({
-      ...this.state,
-      customTurn: {
-        ...this.state.customTurn,
-        turn: null,
-      },
-    });
-  };
-
   render() {
-    const userProvisioningAndSdkInitializationCode = `
-/**************************************************************************************
- *   User token provisioning service should be set up in a trusted backend service.   *
- *   Client applications will make requests to this service for gettings tokens.      *
- **************************************************************************************/
-import  { CommunicationIdentityClient } from @azure/communication-administration;
-const communicationIdentityClient = new CommunicationIdentityClient(<RESOURCE CONNECTION STRING>);
-app.get('/getAcsUserAccessToken', async (request, response) => {
-    try {
-        const communicationUserId = await communicationIdentityClient.createUser();
-        const tokenResponse = await communicationIdentityClient.issueToken({ communicationUserId }, ['voip']);
-        response.json(tokenResponse);
-    } catch(error) {
-        console.log(error);
-    }
-});
-
-/********************************************************************************************************
- *   Client application initializing the ACS Calling Client Web SDK after receiving token from service   *
- *********************************************************************************************************/
-import { CallClient, Features } from '@azure/communication-calling';
-import { AzureCommunicationTokenCredential } from '@azure/communication-common';
-import { AzureLogger, setLogLevel } from '@azure/logger';
-
-export class MyCallingApp {
-    constructor() {
-        this.callClient = undefined;
-        this.callAgent = undefined;
-        this.deviceManager = undefined;
-        this.currentCall = undefined;
-    }
-
-    public async initCallClient() {
-        const response = (await fetch('/getAcsUserAccessToken')).json();
-        const token = response.token;
-        const tokenCredential = new AzureCommunicationTokenCredential(token);
-
-        // Set log level for the logger
-        setLogLevel('verbose');
-        // Redirect logger output to wherever desired
-        AzureLogger.log = (...args) => { console.log(...args); };
-        // CallClient is the entrypoint for the SDK. Use it to
-        // to instantiate a CallClient and to access the DeviceManager
-        this.callClient = new CallClient();
-        this.callAgent = await this.callClient.createCallAgent(tokenCredential, { displayName: 'Optional ACS user name'});
-        this.deviceManager = await this.callClient.getDeviceManager();
-
-        // Handle Calls and RemoteParticipants
-        // Subscribe to 'callsUpdated' event to be when a a call is added or removed
-        this.callAgent.on('callsUpdated', calls => {
-            calls.added.foreach(addedCall => {
-                // Get the state of the call
-                addedCall.state;
-
-                //Subscribe to call state changed event
-                addedCall.on('stateChanged', callStateChangedHandler);
-
-                // Get the unique Id for this Call
-                addedCall.id;
-
-                // Subscribe to call id changed event
-                addedCall.on('idChanged', callIdChangedHandler);
-
-                // Wether microphone is muted or not
-                addedCall.isMuted;
-
-                // Subscribe to isMuted changed event
-                addedCall.on('isMutedChanged', isMutedChangedHandler);
-
-                // Subscribe to current remote participants in the call
-                addedCall.remoteParticipants.forEach(participant => {
-                    subscribeToRemoteParticipant(participant)
-                });
-
-                // Subscribe to new added remote participants in the call
-                addedCall.on('remoteParticipantsUpdated', participants => {
-                    participants.added.forEach(addedParticipant => {
-                        subscribeToRemoteParticipant(addedParticipant)
-                    });
-
-                    participants.removed.forEach(removedParticipant => {
-                        unsubscribeFromRemoteParticipant(removedParticipant);
-                    });
-                });
-            });
-
-            calls.removed.foreach(removedCall => {
-                removedCallHandler(removedCall);
-            });
-        });
-    }
-
-    private subscribeToRemoteParticipant(remoteParticipant) {
-        // Get state of this remote participant
-        remoteParticipant.state;
-
-        // Subscribe to participant state changed event.
-        remoteParticipant.on('stateChanged', participantStateChangedHandler);
-
-        // Whether this remote participant is muted or not
-        remoteParticipant.isMuted;
-
-        // Subscribe to is muted changed event.
-        remoteParticipant.on('isMutedChanged', isMutedChangedHandler);
-
-        // Get participant's display name, if it was set
-        remoteParticipant.displayName;
-
-        // Subscribe to display name changed event
-        remoteParticipant.on('displayNameChanged', dispalyNameChangedHandler);
-
-        // Weather the participant is speaking or not
-        remoteParticipant.isSpeaking;
-
-        // Subscribe to participant is speaking changed event
-        remoteParticipant.on('isSpeakingChanged', isSpeakingChangedHandler);
-
-        // Handle remote participant's current video streams
-        remoteParticipant.videoStreams.forEach(videoStream => { subscribeToRemoteVideoStream(videoStream) });
-
-        // Handle remote participants new added video streams and screen-sharing streams
-        remoteParticipant.on('videoStreamsUpdated', videoStreams => {
-            videoStream.added.forEach(addedStream => {
-                subscribeToRemoteVideoStream(addedStream);
-            });
-            videoStream.removed.forEach(removedStream => {
-                unsubscribeFromRemoteVideoStream(removedStream);
-            });
-        });
-    }
-}
-
-/**************************************************************************************/
-/*     Environment Information     */
-/**************************************************************************************/
-// Get current environment information with details if supported by ACS
-this.environmentInfo = await this.callClient.getEnvironmentInfo();
-
-// The returned value is an object of type EnvironmentInfo
-type EnvironmentInfo = {
-    environment: Environment;
-    isSupportedPlatform: boolean;
-    isSupportedBrowser: boolean;
-    isSupportedBrowserVersion: boolean;
-    isSupportedEnvironment: boolean;
-};
-
-// The Environment type in the EnvironmentInfo type is defined as:
-type Environment = {
-    platform: string;
-    browser: string;
-    browserVersion: string;
-};
-
-// The following code snippet shows how to get the current environment details
-const currentOperatingSystem = this.environmentInfo.environment.platform;
-const currentBrowser = this.environmentInfo.environment.browser;
-const currentBrowserVersion = this.environmentInfo.environment.browserVersion;
-
-// The following code snippet shows how to check if environment details are supported by ACS
-const isSupportedOperatingSystem = this.environmentInfo.isSupportedPlatform;
-const isSupportedBrowser = this.environmentInfo.isSupportedBrowser;
-const isSupportedBrowserVersion = this.environmentInfo.isSupportedBrowserVersion;
-const isSupportedEnvironment = this.environmentInfo.isSupportedEnvironment;
-        `;
-
     return (
       <div className="card">
         <div className="ms-Grid">
-          <div className="ms-Grid-row">
-            <h2 className="ms-Grid-col ms-lg6 ms-sm6 mb-4">
-              User Identity Provisioning and Calling SDK Initialization
-            </h2>
-            <div className="ms-Grid-col ms-lg6 ms-sm6 text-right">
-              <PrimaryButton
-                className="primary-button"
-                iconProps={{
-                  iconName: "Settings",
-                  style: { verticalAlign: "middle", fontSize: "large" },
-                }}
-                text={`${
-                  this.state.showCallClientOptions ? "Hide" : "Show"
-                } options`}
-                onClick={() =>
-                  this.setState({
-                    showCallClientOptions: !this.state.showCallClientOptions,
-                  })
-                }
-              ></PrimaryButton>
-              <PrimaryButton
-                className="primary-button"
-                iconProps={{
-                  iconName: "ReleaseGate",
-                  style: { verticalAlign: "middle", fontSize: "large" },
-                }}
-                text={`${
-                  this.state.showUserProvisioningAndSdkInitializationCode
-                    ? "Hide"
-                    : "Show"
-                } code`}
-                onClick={() =>
-                  this.setState({
-                    showUserProvisioningAndSdkInitializationCode:
-                      !this.state.showUserProvisioningAndSdkInitializationCode,
-                  })
-                }
-              ></PrimaryButton>
-            </div>
-          </div>
           <div className="ms-Grid-row">
             {this.state.loginWarningMessage && (
               <MessageBar
@@ -690,13 +405,6 @@ const isSupportedEnvironment = this.environmentInfo.isSupportedEnvironment;
               </MessageBar>
             )}
           </div>
-          {this.state.showUserProvisioningAndSdkInitializationCode && (
-            <pre>
-              <code style={{ color: "#b3b0ad" }}>
-                {userProvisioningAndSdkInitializationCode}
-              </code>
-            </pre>
-          )}
           {this.state.showSpinner && (
             <div className="justify-content-left mt-4">
               <div className="loader inline-block"> </div>
@@ -707,12 +415,7 @@ const isSupportedEnvironment = this.environmentInfo.isSupportedEnvironment;
             <div>
               <br></br>
               <div>
-                Congrats! You've provisioned an ACS user identity and
-                initialized the ACS Calling Client Web SDK. You are ready to
-                start making calls!
-              </div>
-              <div>
-                The Identity you've provisioned is:{" "}
+                The Identity you have provisioned is:{" "}
                 <span className="identity">
                   <b>{this.state.communicationUserId}</b>
                 </span>
@@ -731,27 +434,7 @@ const isSupportedEnvironment = this.environmentInfo.isSupportedEnvironment;
             <div>
               <div className="ms-Grid-row">
                 <div className="ms-Grid-col">
-                  <h3>ACS User Identity</h3>
-                </div>
-              </div>
-              <div className="ms-Grid-row">
-                <div className="ms-Grid-col">
-                  <div>
-                    The ACS Identity SDK can be used to create a user access
-                    token which authenticates the calling clients.{" "}
-                  </div>
-                  <div>
-                    The example code shows how to use the ACS Identity SDK from
-                    a backend service. A walkthrough of integrating the ACS
-                    Identity SDK can be found on{" "}
-                    <a
-                      className="sdk-docs-link"
-                      target="_blank"
-                      href="https://docs.microsoft.com/en-us/azure/communication-services/quickstarts/access-tokens?pivots=programming-language-javascript"
-                    >
-                      Microsoft Docs
-                    </a>
-                  </div>
+                  <h3>Log In</h3>
                 </div>
               </div>
               <div className="ms-Grid-row">
@@ -761,22 +444,6 @@ const isSupportedEnvironment = this.environmentInfo.isSupportedEnvironment;
                     label="Optional - Display name"
                     onChange={(e) => {
                       this.displayName = e.target.value;
-                    }}
-                  />
-                  <TextField
-                    defaultValue={this.clientTag}
-                    label="Optinal - Usage tag for this session"
-                    onChange={(e) => {
-                      this.clientTag = e.target.value;
-                    }}
-                  />
-                </div>
-                <div className="ms-Grid-col ms-sm12 ms-md6 ms-lg6">
-                  <TextField
-                    placeholder="JWT Token"
-                    label="Optional - ACS communication user token. If no token is provided, then a random one will be generated"
-                    onChange={(e) => {
-                      this.state.token = e.target.value;
                     }}
                   />
                   <TextField
@@ -799,162 +466,10 @@ const isSupportedEnvironment = this.environmentInfo.isSupportedEnvironment;
                     label="Provision an user"
                     onClick={() => this.logIn()}
                   >
-                    Login ACS user and initialize SDK
+                    Log In
                   </PrimaryButton>
                 </div>
               </div>
-              <div className="ms-Grid-row mt-4">
-                <div className="ms-Grid-col">
-                  <h3>Teams User Identity</h3>
-                </div>
-              </div>
-              <div className="ms-Grid-row">
-                <div className="ms-Grid-col">
-                  <div>
-                    Microsoft Authentication Library (MSAL) is used to retrieve
-                    user token which is then exchanged to get an access to get
-                    an access token from the communication service. The access
-                    token is then used to initialize the ACS SDK
-                  </div>
-                  <div>
-                    Information and steps on how to generate access token for a
-                    Teams user can be found in the{" "}
-                    <a
-                      className="sdk-docs-link"
-                      target="_blank"
-                      href="https://learn.microsoft.com/en-us/azure/communication-services/quickstarts/manage-teams-identity?pivots=programming-language-javascript"
-                    >
-                      Microsoft Docs
-                    </a>
-                  </div>
-                  <div>
-                    On clicking the Login Teams User and Initialize SDK, if the
-                    Teams user email or password is not provided, Microsoft
-                    signin pop-up will be used{" "}
-                  </div>
-                </div>
-              </div>
-              {this.state.loggedIn && this.state.isTeamsUser && (
-                <div>
-                  <br></br>
-                  <div>
-                    Congrats! Teams User was successfully logged in. You are
-                    ready to start making calls!
-                  </div>
-                  <div>
-                    Teams User logged in identity is:{" "}
-                    <span className="identity">
-                      <b>{this.state.communicationUserId}</b>
-                    </span>
-                  </div>
-                  {
-                    <div>
-                      Usage is tagged with:{" "}
-                      <span className="identity">
-                        <b>{this.clientTag}</b>
-                      </span>
-                    </div>
-                  }
-                </div>
-              )}
-              {!this.state.showSpinner && !this.state.loggedIn && (
-                <div>
-                  <div className="ms-Grid-row">
-                    <div className="ms-Grid-col ms-sm12 ms-md6 ms-lg6">
-                      <TextField
-                        className="mt-3"
-                        placeholder="Teams User Email"
-                        onBlur={(e) => {
-                          this.teamsUserEmail = e.target.value;
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <div className="ms-Grid-row">
-                    <div className="ms-Grid-col ms-sm12 ms-md6 ms-lg6">
-                      <TextField
-                        type="password"
-                        className="mt-3"
-                        placeholder="Teams User Password"
-                        onBlur={(e) => {
-                          this.teamsUserPassword = e.target.value;
-                        }}
-                      />
-                    </div>
-                  </div>
-                  <div className="ms-Grid-row">
-                    <div className="ms-Grid-col">
-                      <PrimaryButton
-                        className="primary-button mt-3"
-                        iconProps={{
-                          iconName: "ReleaseGate",
-                          style: { verticalAlign: "middle", fontSize: "large" },
-                        }}
-                        onClick={() => this.teamsUserOAuthLogin()}
-                      >
-                        Login Teams user and Initialize SDK
-                      </PrimaryButton>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {this.state.showCallClientOptions && (
-                <div>
-                  <div className="ms-Grid-row mt-4">
-                    <h3 className="ms-Grid-col ms-sm12 ms-md12 ms-lg12">
-                      Options
-                    </h3>
-                  </div>
-                  <div className="ms-Grid-row mt-1">
-                    <div
-                      className="ms-Grid-col ms-sm12 ms-md4 ms-lg4"
-                      disabled={
-                        !this.state.initializedOneSignal ||
-                        !this.state.subscribedForPushNotifications ||
-                        this.isSafari
-                      }
-                    >
-                      Push Notifications options
-                      <Checkbox
-                        className="mt-2"
-                        label="Initialize Call Agent"
-                        disabled={
-                          !this.state.initializedOneSignal ||
-                          !this.state.subscribedForPushNotifications ||
-                          this.isSafari
-                        }
-                        checked={
-                          this.state.initializeCallAgentAfterPushRegistration
-                        }
-                        onChange={(e, isChecked) => {
-                          this.setState({
-                            initializeCallAgentAfterPushRegistration: isChecked,
-                          });
-                        }}
-                      />
-                    </div>
-                    <div className="ms-Grid-col ms-sm12 ms-md4 ms-lg4">
-                      <TurnConfiguration
-                        customTurn={this.state.customTurn}
-                        handleCustomTurnChecked={this.handleCustomTurnChecked}
-                        handleAddTurnConfig={this.handleAddTurnConfig}
-                        handleTurnUrlResetToDefault={
-                          this.handleTurnUrlResetToDefault
-                        }
-                        handleTurnUrlReset={this.handleTurnUrlReset}
-                      />
-                    </div>
-                    <div className="ms-Grid-col ms-sm12 ms-md4 ms-lg4">
-                      <ProxyConfiguration
-                        proxy={this.state.proxy}
-                        handleProxyChecked={this.handleProxyChecked}
-                        handleAddProxyUrl={this.handleAddProxyUrl}
-                        handleProxyUrlReset={this.handleProxyUrlReset}
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           )}
           {this.state.loggedIn && (
