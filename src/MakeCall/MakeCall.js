@@ -340,9 +340,22 @@ export default class MakeCall extends React.Component {
         "endpoint=https://acs-ptc-poc.communication.azure.com/;accesskey=9HcYVEL6vK+bHhff1quj5CSh6hd2ezP9dAykvR1lvZVC8+fTWPiE7utihsorGOSHVQovO7Lf9wI0XNYPwr6cRw==";
       this.roomsClient = new RoomsClient(connectionString);
       // create identities for users
-      const identityClient = new CommunicationIdentityClient(connectionString);
-      const user1 = await identityClient.createUserAndToken(["voip"]);
-      const user2 = await identityClient.createUserAndToken(["voip"]);
+      //const identityClient = new CommunicationIdentityClient(connectionString);
+      //const user1 = await identityClient.createUserAndToken(["voip"]);
+      //const user2 = await identityClient.createUserAndToken(["voip"]);
+
+      const user1 = {
+        user: {
+          communicationUserId:
+            "8:acs:dd0b5bea-6374-415a-a991-c5e791770a22_0000001a-3646-6502-9eaf-473a0d00e08d",
+        },
+      };
+      const user2 = {
+        user: {
+          communicationUserId:
+            "8:acs:dd0b5bea-6374-415a-a991-c5e791770a22_0000001a-3646-cdd4-9eaf-473a0d00e09e",
+        },
+      };
 
       const participants = [
         {
@@ -355,14 +368,12 @@ export default class MakeCall extends React.Component {
         },
       ];
 
-      const roomId = "99593068282817046";
-
       // Create a room
       const validFrom = new Date(Date.now());
-      const validUntil = new Date(validFrom.getTime() + 60 * 60 * 1000);
+      const now = new Date(Date.now());
+      const validUntil = new Date(now.setMonth(now.getMonth() + 5));
 
       const createRoomOptions = {
-        roomId,
         validFrom,
         validUntil,
         participants,
@@ -371,8 +382,8 @@ export default class MakeCall extends React.Component {
       const createRoom = await this.roomsClient.createRoom(createRoomOptions);
       this.createdRoomId = createRoom.id;
       console.log("\nCreated a room with id: ", this.createdRoomId);
-      console.log("User 1: ", participants[0].id);
-      console.log("User 2: ", participants[1].id);
+      /*console.log("User 1: ", participants[0].id);
+      console.log("User 2: ", participants[1].id);*/
 
       const roomsList = await this.roomsClient.listRooms();
       console.log("\nRetrieved list of rooms; printing first room:");

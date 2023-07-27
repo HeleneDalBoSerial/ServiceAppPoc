@@ -16,12 +16,16 @@ import {
 } from "@azure/communication-common";
 import { setLogLevel } from "@azure/logger";
 import { CallClient } from "@azure/communication-calling";
+import { RoomsClient } from "@azure/communication-rooms";
+import { Navigate } from "react-router-dom";
+import { RouteConfig } from "../routes";
 
 export default class Login extends React.Component {
   constructor(props) {
     super(props);
     this.callAgent = undefined;
     this.callClient = undefined;
+    this.roomsClient = null;
     this.userDetailsResponse = undefined;
     this.displayName = undefined;
     this.clientTag = uuid();
@@ -31,6 +35,23 @@ export default class Login extends React.Component {
     this.currentCustomTurnConfig = undefined;
     this.teamsUserEmail = "";
     this.teamsUserPassword = "";
+    this.users = [
+      {
+        name: "Hélène",
+        user: {
+          communicationUserId:
+            "8:acs:dd0b5bea-6374-415a-a991-c5e791770a22_0000001a-3646-6502-9eaf-473a0d00e08d",
+        },
+      },
+      {
+        name: "Guillaume",
+        user: {
+          communicationUserId:
+            "8:acs:dd0b5bea-6374-415a-a991-c5e791770a22_0000001a-3646-cdd4-9eaf-473a0d00e09e",
+        },
+      },
+    ];
+
     this.state = {
       isCallClientActiveInAnotherTab: false,
       environmentInfo: undefined,
@@ -51,6 +72,7 @@ export default class Login extends React.Component {
         turn: null,
       },
       isTeamsUser: false,
+      redirect: false,
     };
   }
 
@@ -138,11 +160,16 @@ export default class Login extends React.Component {
       (this.state.subscribedForPushNotifications &&
         this.state.initializeCallAgentAfterPushRegistration)
     ) {
+      const existingUser = this.users.find(
+        (u) =>
+          u.user.communicationUserId ===
+          this.userDetailsResponse.userId.communicationUserId
+      );
       await this.handleLogIn({
         communicationUserId:
           this.userDetailsResponse.userId.communicationUserId,
         token: this.userDetailsResponse.communicationUserToken.token,
-        displayName: this.displayName,
+        displayName: existingUser ? existingUser.name : this.displayName,
         clientTag: this.clientTag,
         proxy: this.state.proxy,
         customTurn: this.state.customTurn,
@@ -180,6 +207,8 @@ export default class Login extends React.Component {
         );
       }
       await this.setupLoginStates();
+
+      this.setState({ redirect: true });
     } catch (error) {
       this.setState({
         loginErrorMessage: error.message,
@@ -187,6 +216,56 @@ export default class Login extends React.Component {
       console.log(error);
     } finally {
       this.setState({ showSpinner: false });
+    }
+  }
+
+  async initRooms() {
+    try {
+      const connectionString =
+        "endpoint=https://acs-ptc-poc.communication.azure.com/;accesskey=9HcYVEL6vK+bHhff1quj5CSh6hd2ezP9dAykvR1lvZVC8+fTWPiE7utihsorGOSHVQovO7Lf9wI0XNYPwr6cRw==";
+      this.roomsClient = new RoomsClient(connectionString);
+      // create identities for users
+      //const identityClient = new CommunicationIdentityClient(connectionString);
+      //const user1 = await identityClient.createUserAndToken(["voip"]);
+      //const user2 = await identityClient.createUserAndToken(["voip"]);
+
+      const participants = [
+        {
+          id: this.users[0].user,
+          role: "Presenter",
+        },
+        {
+          id: this.users[1].user,
+          role: "Attendee",
+        },
+      ];
+
+      // Create a room
+      const validFrom = new Date(Date.now());
+      const now = new Date(Date.now());
+      const validUntil = new Date(now.setMonth(now.getMonth() + 5));
+
+      const createRoomOptions = {
+        validFrom,
+        validUntil,
+        participants,
+      };
+
+      const createRoom = await this.roomsClient.createRoom(createRoomOptions);
+      this.createdRoomId = createRoom.id;
+      console.log("\nCreated a room with id: ", this.createdRoomId);
+      /*console.log("User 1: ", participants[0].id);
+      console.log("User 2: ", participants[1].id);*/
+
+      const roomsList = await this.roomsClient.listRooms();
+      console.log("\nRetrieved list of rooms; printing first room:");
+      for await (const currentRoom of roomsList) {
+        // access room data here
+        console.log(currentRoom);
+        break;
+      }
+    } catch (e) {
+      console.error("Failed to init a room", e);
     }
   }
 
@@ -411,25 +490,6 @@ export default class Login extends React.Component {
               <div className="ml-2 inline-block">Initializing SDK...</div>
             </div>
           )}
-          {this.state.loggedIn && !this.state.isTeamsUser && (
-            <div>
-              <br></br>
-              <div>
-                The Identity you have provisioned is:{" "}
-                <span className="identity">
-                  <b>{this.state.communicationUserId}</b>
-                </span>
-              </div>
-              {
-                <div>
-                  Usage is tagged with:{" "}
-                  <span className="identity">
-                    <b>{this.clientTag}</b>
-                  </span>
-                </div>
-              }
-            </div>
-          )}
           {!this.state.showSpinner && !this.state.loggedIn && (
             <div>
               <div className="ms-Grid-row">
@@ -438,17 +498,10 @@ export default class Login extends React.Component {
                 </div>
               </div>
               <div className="ms-Grid-row">
-                <div className="ms-Grid-col ms-sm12 ms-md6 ms-lg6">
-                  <TextField
-                    defaultValue={undefined}
-                    label="Optional - Display name"
-                    onChange={(e) => {
-                      this.displayName = e.target.value;
-                    }}
-                  />
+                <div className="ms-Grid-col ms-sm12 ms-md12 ms-lg12">
                   <TextField
                     placeholder="8:acs:<ACS Resource ID>_<guid>"
-                    label="Optional - ACS Identity"
+                    label="ACS Identity"
                     onChange={(e) => {
                       this.state.communicationUserId = e.target.value;
                     }}
@@ -456,13 +509,9 @@ export default class Login extends React.Component {
                 </div>
               </div>
               <div className="ms-Grid-row">
-                <div className="ms-Grid-col">
+                <div className="ms-Grid-col ms-sm12 ms-md12 ms-lg12">
                   <PrimaryButton
-                    className="primary-button mt-3"
-                    iconProps={{
-                      iconName: "ReleaseGate",
-                      style: { verticalAlign: "middle", fontSize: "large" },
-                    }}
+                    className="primary-button mt-4"
                     label="Provision an user"
                     onClick={() => this.logIn()}
                   >
@@ -470,34 +519,22 @@ export default class Login extends React.Component {
                   </PrimaryButton>
                 </div>
               </div>
-            </div>
-          )}
-          {this.state.loggedIn && (
-            <div>
-              <div className="ms-Grid-row mt-4">
-                <h3 className="ms-Grid-col ms-sm12 ms-md12 ms-lg12">
-                  Environment information
-                </h3>
-              </div>
-              <div className="ms-Grid-row ml-1">
-                <div className="ms-Grid-col ms-sm12 ms-md6 ms-lg3">
-                  <h4>Current environment details</h4>
-                  <div>{`Operating system:   ${this.state.environmentInfo?.environment?.platform}.`}</div>
-                  <div>{`Browser:  ${this.state.environmentInfo?.environment?.browser}.`}</div>
-                  <div>{`Browser's version:  ${this.state.environmentInfo?.environment?.browserVersion}.`}</div>
-                  <div>{`Is the application loaded in many tabs:  ${this.state.isCallClientActiveInAnotherTab}.`}</div>
+              {/*
+              <div className="ms-Grid-row">
+                <div className="ms-Grid-col ms-sm12 ms-md12 ms-lg12">
+                  <PrimaryButton
+                    className="primary-button mt-4"
+                    label="Create a room"
+                    onClick={() => this.initRooms()}
+                  >
+                    Create room
+                  </PrimaryButton>
                 </div>
-                <div className="ms-Grid-col ms-sm12 ms-md6 ms-lg9">
-                  <h4>Environment support verification</h4>
-                  <div>{`Operating system supported:  ${this.state.environmentInfo?.isSupportedPlatform}.`}</div>
-                  <div>{`Browser supported:  ${this.state.environmentInfo?.isSupportedBrowser}.`}</div>
-                  <div>{`Browser's version supported:  ${this.state.environmentInfo?.isSupportedBrowserVersion}.`}</div>
-                  <div>{`Current environment supported:  ${this.state.environmentInfo?.isSupportedEnvironment}.`}</div>
-                </div>
-              </div>
+                  </div>*/}
             </div>
           )}
         </div>
+        {this.state.redirect && <Navigate to="/projects" replace={true} />}
       </div>
     );
   }

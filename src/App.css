@@ -269,6 +269,7 @@ div.ms-Checkbox
   outline: none;
   margin-right: 1em;
   margin-bottom: 1em;
+  width: 100%;
 }
 
 .primary-button:hover {
