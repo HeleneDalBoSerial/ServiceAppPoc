@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { Persona, PersonaSize } from "@fluentui/react/lib/Persona";
 import { RouteConfig } from "../routes";
+import Header from "./Header";
 import { utils } from "../Utils/Utils";
 
 function ProjectsPage() {
@@ -43,26 +44,29 @@ function ProjectsPage() {
   };
 
   return (
-    <div className="card">
-      <div className="ms-Grid">
-        <div>
-          <div className="ms-Grid-row">
-            <div className="ms-Grid-col">
-              <h3>My projects</h3>
+    <>
+      <Header />
+      <div className="card">
+        <div className="ms-Grid">
+          <div>
+            <div className="ms-Grid-row">
+              <div className="ms-Grid-col">
+                <h3>My projects</h3>
+              </div>
             </div>
-          </div>
-          <div className="ms-Grid-row mt-3">
-            <div
-              className="ms-Grid-col ms-sm12 ms-md12 ms-lg12 project"
-              onClick={redirectToProjectPage}
-            >
-              <Persona {...projectData} size={PersonaSize.size56} />
+            <div className="ms-Grid-row mt-3">
+              <div
+                className="ms-Grid-col ms-sm12 ms-md12 ms-lg12 project"
+                onClick={redirectToProjectPage}
+              >
+                <Persona {...projectData} size={PersonaSize.size56} />
+              </div>
             </div>
           </div>
         </div>
+        {!loggedIn && <Navigate to="/" replace={true} />}
       </div>
-      {!loggedIn && <Navigate to="/" replace={true} />}
-    </div>
+    </>
   );
 }
 

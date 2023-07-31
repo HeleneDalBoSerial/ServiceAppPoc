@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useState } from "react";
 import { ChatScreen } from "./ChatScreen";
 import { useSelector } from "react-redux";
-import { utils } from "../Utils/Utils";
+import CallHeader from "./CallHeader";
 
 function ProjectPage() {
   const token = useSelector((state) => state.poc.token);
@@ -12,18 +12,21 @@ function ProjectPage() {
   const [userJoinedThread, setUserJoinedThread] = useState(true);
 
   return (
-    <div className="card">
-      {userJoinedThread && (
-        <ChatScreen
-          token={token}
-          userId={userId}
-          displayName={displayName}
-          endpointUrl={endpointUrl}
-          threadId={threadId}
-          endChatHandler={(isParticipantRemoved) => {}}
-        />
-      )}
-    </div>
+    <>
+      <CallHeader />
+      <div className="card">
+        {userJoinedThread && (
+          <ChatScreen
+            token={token}
+            userId={userId}
+            displayName={displayName}
+            endpointUrl={endpointUrl}
+            threadId={threadId}
+            endChatHandler={(isParticipantRemoved) => {}}
+          />
+        )}
+      </div>
+    </>
   );
 }
 

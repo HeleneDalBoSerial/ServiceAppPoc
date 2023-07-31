@@ -105,6 +105,9 @@ module.exports = {
   devtool: "inline-source-map",
   mode: "development",
   entry: "./src/index.js",
+  output: {
+    publicPath: "/",
+  },
   module: {
     rules: [
       {
@@ -148,6 +151,7 @@ module.exports = {
   devServer: {
     open: true,
     port: PORT,
+    historyApiFallback: true,
     contentBase: "./public",
     allowedHosts: [".azurewebsites.net"],
     before: function (app) {

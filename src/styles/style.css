@@ -1,6 +1,10 @@
 .header {
   background-color: white;
   padding: 10px;
+  position: fixed;
+  top: 0;
+  width: 100vw;
+  z-index: 2;
 }
 
 .header_content {
@@ -16,4 +20,16 @@
 .project {
   background-color: white;
   cursor: pointer;
+}
+
+/* Chat */
+
+.ms-Stack.css-245 {
+  position: fixed;
+  bottom: 10px;
+  width: calc(100% - 40px);
+}
+
+.ms-FocusZone.ui-chat {
+  height: calc(100vh - 180px);
 }

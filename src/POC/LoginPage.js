@@ -11,6 +11,7 @@ import { utils } from "../Utils/Utils";
 import { v4 as uuid } from "uuid";
 import OneSignal from "react-onesignal";
 import * as config from "../../clientConfig.json";
+import Header from "./Header";
 import {
   AzureCommunicationTokenCredential,
   createIdentifierFromRawId,
@@ -470,90 +471,93 @@ class Login extends React.Component {
 
   render() {
     return (
-      <div className="card">
-        <div className="ms-Grid">
-          <div className="ms-Grid-row">
-            {this.state.loginWarningMessage && (
-              <MessageBar
-                className="mb-2"
-                messageBarType={MessageBarType.warning}
-                isMultiline={true}
-                onDismiss={() => {
-                  this.setState({ loginWarningMessage: undefined });
-                }}
-                dismissButtonAriaLabel="Close"
-              >
-                <b>{this.state.loginWarningMessage}</b>
-              </MessageBar>
+      <>
+        <Header />
+        <div className="card">
+          <div className="ms-Grid">
+            <div className="ms-Grid-row">
+              {this.state.loginWarningMessage && (
+                <MessageBar
+                  className="mb-2"
+                  messageBarType={MessageBarType.warning}
+                  isMultiline={true}
+                  onDismiss={() => {
+                    this.setState({ loginWarningMessage: undefined });
+                  }}
+                  dismissButtonAriaLabel="Close"
+                >
+                  <b>{this.state.loginWarningMessage}</b>
+                </MessageBar>
+              )}
+            </div>
+            <div className="ms-Grid-row">
+              {this.state.loginErrorMessage && (
+                <MessageBar
+                  className="mb-2"
+                  messageBarType={MessageBarType.error}
+                  isMultiline={true}
+                  onDismiss={() => {
+                    this.setState({ loginErrorMessage: undefined });
+                  }}
+                  dismissButtonAriaLabel="Close"
+                >
+                  <b>{this.state.loginErrorMessage}</b>
+                </MessageBar>
+              )}
+            </div>
+            {this.state.showSpinner && (
+              <div className="justify-content-left mt-4">
+                <div className="loader inline-block"> </div>
+                <div className="ml-2 inline-block">Initializing SDK...</div>
+              </div>
+            )}
+            {!this.state.showSpinner && !this.props.loggedIn && (
+              <div>
+                <div className="ms-Grid-row">
+                  <div className="ms-Grid-col">
+                    <h3>Log In</h3>
+                  </div>
+                </div>
+                <div className="ms-Grid-row">
+                  <div className="ms-Grid-col ms-sm12 ms-md12 ms-lg12">
+                    <TextField
+                      placeholder="8:acs:<ACS Resource ID>_<guid>"
+                      label="ACS Identity"
+                      onChange={(e) => {
+                        this.state.communicationUserId = e.target.value;
+                      }}
+                    />
+                  </div>
+                </div>
+                <div className="ms-Grid-row">
+                  <div className="ms-Grid-col ms-sm12 ms-md12 ms-lg12">
+                    <PrimaryButton
+                      className="primary-button mt-4"
+                      label="Provision an user"
+                      onClick={() => this.logIn()}
+                    >
+                      Log In
+                    </PrimaryButton>
+                  </div>
+                </div>
+                {/*
+            <div className="ms-Grid-row">
+              <div className="ms-Grid-col ms-sm12 ms-md12 ms-lg12">
+                <PrimaryButton
+                  className="primary-button mt-4"
+                  label="Create a room"
+                  onClick={() => this.initRooms()}
+                >
+                  Create room
+                </PrimaryButton>
+              </div>
+                </div>*/}
+              </div>
             )}
           </div>
-          <div className="ms-Grid-row">
-            {this.state.loginErrorMessage && (
-              <MessageBar
-                className="mb-2"
-                messageBarType={MessageBarType.error}
-                isMultiline={true}
-                onDismiss={() => {
-                  this.setState({ loginErrorMessage: undefined });
-                }}
-                dismissButtonAriaLabel="Close"
-              >
-                <b>{this.state.loginErrorMessage}</b>
-              </MessageBar>
-            )}
-          </div>
-          {this.state.showSpinner && (
-            <div className="justify-content-left mt-4">
-              <div className="loader inline-block"> </div>
-              <div className="ml-2 inline-block">Initializing SDK...</div>
-            </div>
-          )}
-          {!this.state.showSpinner && !this.props.loggedIn && (
-            <div>
-              <div className="ms-Grid-row">
-                <div className="ms-Grid-col">
-                  <h3>Log In</h3>
-                </div>
-              </div>
-              <div className="ms-Grid-row">
-                <div className="ms-Grid-col ms-sm12 ms-md12 ms-lg12">
-                  <TextField
-                    placeholder="8:acs:<ACS Resource ID>_<guid>"
-                    label="ACS Identity"
-                    onChange={(e) => {
-                      this.state.communicationUserId = e.target.value;
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="ms-Grid-row">
-                <div className="ms-Grid-col ms-sm12 ms-md12 ms-lg12">
-                  <PrimaryButton
-                    className="primary-button mt-4"
-                    label="Provision an user"
-                    onClick={() => this.logIn()}
-                  >
-                    Log In
-                  </PrimaryButton>
-                </div>
-              </div>
-              {/*
-              <div className="ms-Grid-row">
-                <div className="ms-Grid-col ms-sm12 ms-md12 ms-lg12">
-                  <PrimaryButton
-                    className="primary-button mt-4"
-                    label="Create a room"
-                    onClick={() => this.initRooms()}
-                  >
-                    Create room
-                  </PrimaryButton>
-                </div>
-                  </div>*/}
-            </div>
-          )}
+          {this.state.redirect && <Navigate to="/projects" replace={true} />}
         </div>
-        {this.state.redirect && <Navigate to="/projects" replace={true} />}
-      </div>
+      </>
     );
   }
 }

@@ -79,6 +79,7 @@ export const ChatScreen = (props) => {
             adapter={adapter}
             options={{
               autoFocus: "sendBoxTextField",
+              topic: false,
             }}
           />
         </Stack.Item>
