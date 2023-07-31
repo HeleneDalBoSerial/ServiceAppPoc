@@ -1,6 +1,6 @@
 import React from "react";
 import "./App.css";
-import "./style.css";
+import "./styles/style.css";
 import { initializeIcons } from "@uifabric/icons";
 import { ToastContainer } from "react-toastify";
 import Header from "./POC/Header";

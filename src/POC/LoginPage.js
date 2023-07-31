@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import React from "react";
 import {
   TextField,
@@ -18,9 +19,15 @@ import { setLogLevel } from "@azure/logger";
 import { CallClient } from "@azure/communication-calling";
 import { RoomsClient } from "@azure/communication-rooms";
 import { Navigate } from "react-router-dom";
-import { RouteConfig } from "../routes";
+import { connect } from "react-redux";
+import {
+  setIsLoggedIn,
+  setToken,
+  setCommunicationUserId,
+  setDisplayName,
+} from "../store/pocSlice";
 
-export default class Login extends React.Component {
+class Login extends React.Component {
   constructor(props) {
     super(props);
     this.callAgent = undefined;
@@ -165,11 +172,18 @@ export default class Login extends React.Component {
           u.user.communicationUserId ===
           this.userDetailsResponse.userId.communicationUserId
       );
+
+      const displayName = existingUser ? existingUser.name : this.displayName;
+
+      this.props.setToken(this.state.token);
+      this.props.setCommunicationUserId(this.state.communicationUserId);
+      this.props.setDisplayName(displayName);
+
       await this.handleLogIn({
         communicationUserId:
           this.userDetailsResponse.userId.communicationUserId,
         token: this.userDetailsResponse.communicationUserToken.token,
-        displayName: existingUser ? existingUser.name : this.displayName,
+        displayName,
         clientTag: this.clientTag,
         proxy: this.state.proxy,
         customTurn: this.state.customTurn,
@@ -177,7 +191,8 @@ export default class Login extends React.Component {
       });
     }
     console.log("Login response: ", this.userDetailsResponse);
-    this.setState({ loggedIn: true });
+    //this.setState({ loggedIn: true });
+    this.props.setIsLoggedIn(true);
   }
 
   async logIn() {
@@ -303,7 +318,9 @@ export default class Login extends React.Component {
         });
         await this._callAgentInitPromise;
         console.log("Login response: ", this.userDetailsResponse);
-        this.setState({ loggedIn: true });
+        //this.setState({ loggedIn: true });
+        this.props.setIsLoggedIn(true);
+
         if (!this.callAgent.handlePushNotification) {
           throw new Error(
             "Handle push notification feature is not implemented in ACS Web Calling SDK yet."
@@ -417,7 +434,8 @@ export default class Login extends React.Component {
             this.displayCallEndReason(args.callEndReason);
           });
         });
-        this.setState({ loggedIn: true });
+        //this.setState({ loggedIn: true });
+        this.props.setIsLoggedIn(true);
         this.setCallAgent(this.callAgent);
         this.setCallClient(this.callClient);
       } catch (e) {
@@ -490,7 +508,7 @@ export default class Login extends React.Component {
               <div className="ml-2 inline-block">Initializing SDK...</div>
             </div>
           )}
-          {!this.state.showSpinner && !this.state.loggedIn && (
+          {!this.state.showSpinner && !this.props.loggedIn && (
             <div>
               <div className="ms-Grid-row">
                 <div className="ms-Grid-col">
@@ -539,3 +557,19 @@ export default class Login extends React.Component {
     );
   }
 }
+
+const mapStateToProps = (state) => ({
+  loggedIn: state.poc.loggedIn,
+  token: state.poc.token,
+  communicationUserId: state.poc.communicationUserId,
+  displayName: state.poc.displayName,
+});
+
+const mapDispatchToProps = {
+  setIsLoggedIn,
+  setToken,
+  setCommunicationUserId,
+  setDisplayName,
+};
+
+export default connect(mapStateToProps, mapDispatchToProps)(Login);
