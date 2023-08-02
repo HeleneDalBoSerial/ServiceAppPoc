@@ -5,4 +5,8 @@ export const store = configureStore({
   reducer: {
     poc: pocReducer,
   },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: false,
+    }),
 });

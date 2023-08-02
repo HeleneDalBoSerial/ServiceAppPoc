@@ -26,6 +26,12 @@ import {
   setToken,
   setCommunicationUserId,
   setDisplayName,
+  setInCall,
+  setCallAgent,
+  setDeviceManager,
+  setCallClient,
+  setCall,
+  setIdentityMri,
 } from "../store/pocSlice";
 
 class Login extends React.Component {
@@ -370,6 +376,7 @@ class Login extends React.Component {
         });
 
         this.deviceManager = await this.callClient.getDeviceManager();
+        this.props.setDeviceManager(this.deviceManager);
         const permissions = await this.deviceManager.askDevicePermission({
           audio: true,
           video: true,
@@ -377,22 +384,30 @@ class Login extends React.Component {
         this.setState({ permissions: permissions });
 
         this.setState({ isTeamsUser: userDetails.isTeamsUser });
-        this.setState({
+
+        const identityMri = {
           identityMri: createIdentifierFromRawId(
             userDetails.communicationUserId
           ),
-        });
-        this.callAgent = this.state.isTeamsUser
-          ? await this.callClient.createTeamsCallAgent(tokenCredential)
-          : await this.callClient.createCallAgent(tokenCredential, {
-              displayName: userDetails.displayName,
-            });
+        };
+        this.setState(identityMri);
+        this.props.setIdentityMri(identityMri);
+
+        this.callAgent = await this.callClient.createCallAgent(
+          tokenCredential,
+          {
+            displayName: userDetails.displayName,
+          }
+        );
+
+        this.props.setCallAgent(this.callAgent);
 
         this.callAgent.on("callsUpdated", (e) => {
           console.log(`callsUpdated, added=${e.added}, removed=${e.removed}`);
 
           e.added.forEach((call) => {
             this.setState({ call: call });
+            this.props.setCall(call);
 
             const diagnosticChangedListener = (diagnosticInfo) => {
               const rmsg = `UFD Diagnostic changed:
@@ -435,6 +450,7 @@ class Login extends React.Component {
             this.displayCallEndReason(args.callEndReason);
           });
         });
+
         //this.setState({ loggedIn: true });
         this.props.setIsLoggedIn(true);
         this.setCallAgent(this.callAgent);
@@ -454,6 +470,7 @@ class Login extends React.Component {
 
   async setCallClient(callClient) {
     this.callClient = callClient;
+    this.props.setCallClient(callClient);
     const environmentInfo = await this.callClient.getEnvironmentInfoInternal();
     this.setState({ environmentInfo });
     const debugInfoFeature = await this.callClient.feature(Features.DebugInfo);
@@ -567,6 +584,8 @@ const mapStateToProps = (state) => ({
   token: state.poc.token,
   communicationUserId: state.poc.communicationUserId,
   displayName: state.poc.displayName,
+  callAgent: state.poc.callAgent,
+  deviceManager: state.poc.deviceManager,
 });
 
 const mapDispatchToProps = {
@@ -574,6 +593,12 @@ const mapDispatchToProps = {
   setToken,
   setCommunicationUserId,
   setDisplayName,
+  setInCall,
+  setCallAgent,
+  setDeviceManager,
+  setCallClient,
+  setCall,
+  setIdentityMri,
 };
 
 export default connect(mapStateToProps, mapDispatchToProps)(Login);

@@ -5,6 +5,12 @@ const initialState = {
   token: null,
   communicationUserId: null,
   displayName: null,
+  inCall: false,
+  callAgent: null,
+  callClient: null,
+  deviceManager: null,
+  call: null,
+  identityMri: null,
 };
 
 export const pocSlice = createSlice({
@@ -23,6 +29,24 @@ export const pocSlice = createSlice({
     setDisplayName: (state, action) => {
       state.displayName = action.payload;
     },
+    setInCall: (state, action) => {
+      state.inCall = action.payload;
+    },
+    setCallAgent: (state, action) => {
+      state.callAgent = action.payload;
+    },
+    setCallClient: (state, action) => {
+      state.callClient = action.payload;
+    },
+    setDeviceManager: (state, action) => {
+      state.deviceManager = action.payload;
+    },
+    setCall: (state, action) => {
+      state.call = action.payload;
+    },
+    setIdentityMri: (state, action) => {
+      state.identityMri = action.payload;
+    },
   },
 });
 
@@ -31,6 +55,13 @@ export const {
   setToken,
   setCommunicationUserId,
   setDisplayName,
+  setInCall,
+  setCallAgent,
+  setCallClient,
+  setDeviceManage,
+  setCall,
+  setIdentityMri,
+  setDeviceManager,
 } = pocSlice.actions;
 
 export default pocSlice.reducer;
