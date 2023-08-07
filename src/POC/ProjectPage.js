@@ -14,7 +14,7 @@ function ProjectPage() {
   return (
     <>
       <CallHeader />
-      <div className="card">
+      <div className="card chat-card">
         {userJoinedThread && (
           <ChatScreen
             token={token}

@@ -5,15 +5,16 @@ import CallCard from "./CallCard";
 import { PrimaryButton } from "office-ui-fabric-react";
 import { useSelector } from "react-redux";
 import { LocalVideoStream } from "@azure/communication-calling";
+import { Persona, PersonaSize } from "@fluentui/react/lib/Persona";
 import {
   CallComposite,
   useAzureCommunicationCallAdapter,
 } from "@azure/communication-react";
-import { setInCall } from "../store/pocSlice";
+//import { setInCall } from "../store/pocSlice";
 
 function CallHeader() {
   const loggedIn = useSelector((state) => state.poc.loggedIn);
-  const inCall = useSelector((state) => state.poc.inCall);
+  //const inCall = useSelector((state) => state.poc.inCall);
   const userId = useSelector((state) => state.poc.communicationUserId);
   const token = useSelector((state) => state.poc.token);
   const displayName = useSelector((state) => state.poc.displayName);
@@ -21,6 +22,8 @@ function CallHeader() {
   const callAgent = useSelector((state) => state.poc.callAgent);
   const call = useSelector((state) => state.poc.call);
   const identityMri = useSelector((state) => state.poc.identityMri);
+  const projectData = useSelector((state) => state.poc.projectData);
+
   const [permissions, setPermissions] = useState(null);
   const [adapter, setAdapter] = useState(null);
   const [selectedCameraDeviceId, setSelectedCameraDeviceId] = useState(null);
@@ -36,6 +39,8 @@ function CallHeader() {
     localVideoTileOptions: { position: "floating" },
   });
   const [showCallComposite, setShowCallComposite] = useState(false);
+  const [hideCallModal, setHideCallModal] = useState(false);
+  const [inCall, setInCall] = useState(false);
 
   async function getCallOptions(options) {
     let callOptions = {
@@ -130,6 +135,7 @@ function CallHeader() {
   }
 
   async function joinRooms(withVideo) {
+    setInCall(true);
     try {
       const callOptions = await getCallOptions({
         video: withVideo,
@@ -138,6 +144,7 @@ function CallHeader() {
       callAgent.join({ roomId }, callOptions);
     } catch (e) {
       console.error("Failed to join a call", e);
+      setInCall(false);
     }
   }
 
@@ -145,6 +152,18 @@ function CallHeader() {
     await adapter.leaveCall().catch((e) => {
       console.error("Failed to leave call", e);
     });
+  };
+
+  const leaveCallEvent = () => {
+    setInCall(false);
+  };
+
+  const goBackFromCall = async () => {
+    setHideCallModal(true);
+  };
+
+  const backToCall = async () => {
+    setHideCallModal(false);
   };
 
   React.useEffect(() => {
@@ -191,17 +210,68 @@ function CallHeader() {
   }
 
   return (
-    <header className="header">
-      <div className="header_content">
+    <header
+      className="header callheader"
+      style={{
+        maxHeight: hideCallModal ? "50px" : "auto",
+      }}
+    >
+      <div className="call_header_content">
         <PrimaryButton
           className="primary-button"
+          style={{
+            visibility: inCall && !hideCallModal ? "visible" : "hidden",
+          }}
           iconProps={{
-            iconName: "Phone",
+            iconName: "Back",
             style: { verticalAlign: "middle", fontSize: "large" },
           }}
-          disabled={inCall || !loggedIn}
-          onClick={() => joinRooms(false)}
+          onClick={() => goBackFromCall()}
         ></PrimaryButton>
+        <Persona {...projectData} size={PersonaSize.size56} />
+        {!inCall && (
+          <>
+            <PrimaryButton
+              className="primary-button"
+              iconProps={{
+                iconName: "Video",
+                style: { verticalAlign: "middle", fontSize: "large" },
+              }}
+              disabled={inCall || !loggedIn}
+              onClick={() => joinRooms(true)}
+            ></PrimaryButton>
+            <PrimaryButton
+              className="primary-button"
+              iconProps={{
+                iconName: "Phone",
+                style: { verticalAlign: "middle", fontSize: "large" },
+              }}
+              disabled={inCall || !loggedIn}
+              onClick={() => joinRooms(false)}
+            ></PrimaryButton>
+          </>
+        )}
+
+        {inCall && hideCallModal && (
+          <>
+            <PrimaryButton
+              className="primary-button decline-call-button "
+              iconProps={{
+                iconName: "DeclineCall",
+                style: { verticalAlign: "middle", fontSize: "large" },
+              }}
+              onClick={() => leaveCallEvent()}
+            ></PrimaryButton>
+            <PrimaryButton
+              className="primary-button"
+              iconProps={{
+                iconName: "FullScreen",
+                style: { verticalAlign: "middle", fontSize: "large" },
+              }}
+              onClick={() => backToCall()}
+            ></PrimaryButton>
+          </>
+        )}
       </div>
       {/*showCallComposite && (
         <ContosoCallContainer
@@ -211,7 +281,7 @@ function CallHeader() {
           roomId={roomId}
         />
       )*/}
-      {call && (
+      {call && inCall && (
         <CallCard
           call={call}
           deviceManager={deviceManager}
@@ -221,6 +291,8 @@ function CallHeader() {
           microphoneDeviceOptions={microphoneDeviceOptions}
           identityMri={identityMri}
           isTeamsUser={false}
+          hide={hideCallModal}
+          leaveCall={leaveCallEvent}
           onShowCameraNotFoundWarning={(show) => {
             this.setState({ showCameraNotFoundWarning: show });
           }}

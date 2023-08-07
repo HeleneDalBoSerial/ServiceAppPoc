@@ -153,7 +153,7 @@ module.exports = {
     port: PORT,
     historyApiFallback: true,
     contentBase: "./public",
-    allowedHosts: [".azurewebsites.net"],
+    allowedHosts: ["waserviceapppoc.azurewebsites.net"],
     before: function (app) {
       app.use(bodyParser.json());
       app.post("/getCommunicationUserToken", async (req, res) => {

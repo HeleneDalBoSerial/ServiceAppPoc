@@ -1,3 +1,4 @@
+/* eslint-disable react/prop-types */
 import React from "react";
 import { FunctionalStreamRenderer as StreamRenderer } from "./FunctionalStreamRenderer";
 import { Icon } from "@fluentui/react/lib/Icon";
@@ -765,9 +766,20 @@ export default class CallCard extends React.Component {
     }
   }
 
+  hangUp() {
+    this.call.hangUp();
+    this.props.leaveCall();
+  }
+
   render() {
     return (
-      <div className="ms-Grid mt-2">
+      <div
+        className="ms-Grid call-card"
+        style={{
+          visibility: this.props.hide ? "hidden" : "visible",
+          height: this.props.hide ? "1px" : "calc(100vh - 60px)",
+        }}
+      >
         <div className="video-grid-row">
           {(this.state.callState === "Connected" ||
             this.state.callState === "LocalHold" ||
@@ -805,23 +817,37 @@ export default class CallCard extends React.Component {
             />
           )}
         </div>
-        <div className="ms-Grid-row">
+        {this.state.videoOn && this.state.canOnVideo && (
+          <div className="mt-5">
+            {this.state.allRemoteParticipantStreams?.length === 0 && (
+              <div className="ms-Grid-row">
+                <h3
+                  style={{
+                    color: "white",
+                    textAlign: "center",
+                  }}
+                >
+                  You are the only one in the meeting
+                </h3>
+              </div>
+            )}
+            <div
+              className={`ms-Grid-row ${
+                this.state.allRemoteParticipantStreams?.length > 0
+                  ? "small-preview"
+                  : ""
+              }`}
+            >
+              <div className="ms-Grid-col ms-sm12 ms-md4 ms-lg4">
+                <LocalVideoPreviewCard stream={this.localVideoStream} />
+              </div>
+            </div>
+          </div>
+        )}
+        <div className="ms-Grid-row call-icons">
           <div className="text-center">
             <span
-              className="in-call-button"
-              title={`Turn your video ${this.state.videoOn ? "off" : "on"}`}
-              variant="secondary"
-              onClick={() => this.handleVideoOnOff()}
-            >
-              {this.state.canOnVideo && this.state.videoOn && (
-                <Icon iconName="Video" />
-              )}
-              {(!this.state.canOnVideo || !this.state.videoOn) && (
-                <Icon iconName="VideoOff" />
-              )}
-            </span>
-            <span
-              className="in-call-button"
+              className="in-call-button mic-button"
               title={`${
                 this.state.micMuted ? "Unmute" : "Mute"
               } your microphone`}
@@ -835,23 +861,27 @@ export default class CallCard extends React.Component {
                 <Icon iconName="MicOff2" />
               )}
             </span>
-            <span className="in-call-button" onClick={() => this.call.hangUp()}>
+            <span
+              className="in-call-button decline-call-button"
+              onClick={() => this.hangUp()}
+            >
               <Icon iconName="DeclineCall" />
+            </span>
+            <span
+              className="in-call-button video-button"
+              title={`Turn your video ${this.state.videoOn ? "off" : "on"}`}
+              variant="secondary"
+              onClick={() => this.handleVideoOnOff()}
+            >
+              {this.state.canOnVideo && this.state.videoOn && (
+                <Icon iconName="Video" />
+              )}
+              {(!this.state.canOnVideo || !this.state.videoOn) && (
+                <Icon iconName="VideoOff" />
+              )}
             </span>
           </div>
         </div>
-        {this.state.videoOn && this.state.canOnVideo && (
-          <div className="mt-5">
-            <div className="ms-Grid-row">
-              <h3>Local video preview</h3>
-            </div>
-            <div className="ms-Grid-row">
-              <div className="ms-Grid-col ms-sm12 ms-md4 ms-lg4">
-                <LocalVideoPreviewCard stream={this.localVideoStream} />
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     );
   }

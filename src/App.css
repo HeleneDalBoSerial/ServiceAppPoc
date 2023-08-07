@@ -293,7 +293,30 @@ div.ms-Checkbox
   padding-bottom: 0.4em;
   padding-right: 0.4em;
   padding-left: 0.4em;
-  font-size: x-large;
+  padding-top: 0.1em;
+  font-size: 18pt;
+  margin-right: 12px;
+  border: 1px solid;
+  border-radius: 50%;
+}
+
+.in-call-button.video-button {
+  color: white;
+  background-color: #2a3a4a;
+  border-color: #5d6b7c;
+}
+
+.in-call-button.decline-call-button,
+.primary-button.decline-call-button {
+  color: white;
+  background-color: #cf3f37;
+  border-color: #cf3f37;
+}
+
+.in-call-button.mic-button {
+  color: #545454;
+  background-color: white;
+  border-color: white;
 }
 
 .incoming-call-button,
@@ -304,10 +327,6 @@ div.ms-Checkbox
 .in-call-button:hover,
 .incoming-call-button:hover {
   cursor: pointer;
-}
-
-.in-call-button:first-child {
-  border-radius: 0px;
 }
 
 .in-call-button > i,
@@ -981,7 +1000,7 @@ div.callDebugInfoJSONStringDiv {
   }
 
   .in-call-button {
-    font-size: x-large;
+    font-size: 18pt;
   }
 
   .call-input-panel {

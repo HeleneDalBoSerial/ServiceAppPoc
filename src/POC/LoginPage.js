@@ -64,6 +64,13 @@ class Login extends React.Component {
             "8:acs:dd0b5bea-6374-415a-a991-c5e791770a22_0000001a-3646-cdd4-9eaf-473a0d00e09e",
         },
       },
+      {
+        name: "Jane Doe",
+        user: {
+          communicationUserId:
+            "8:acs:dd0b5bea-6374-415a-a991-c5e791770a22_0000001a-6f06-2685-f4f3-ad3a0d002036",
+        },
+      },
     ];
 
     this.state = {
@@ -241,11 +248,15 @@ class Login extends React.Component {
     }
   }
 
+  initRoomClient() {
+    const connectionString =
+      "endpoint=https://acs-ptc-poc.communication.azure.com/;accesskey=9HcYVEL6vK+bHhff1quj5CSh6hd2ezP9dAykvR1lvZVC8+fTWPiE7utihsorGOSHVQovO7Lf9wI0XNYPwr6cRw==";
+    this.roomsClient = new RoomsClient(connectionString);
+  }
+
   async initRooms() {
     try {
-      const connectionString =
-        "endpoint=https://acs-ptc-poc.communication.azure.com/;accesskey=9HcYVEL6vK+bHhff1quj5CSh6hd2ezP9dAykvR1lvZVC8+fTWPiE7utihsorGOSHVQovO7Lf9wI0XNYPwr6cRw==";
-      this.roomsClient = new RoomsClient(connectionString);
+      this.initRoomClient();
       // create identities for users
       //const identityClient = new CommunicationIdentityClient(connectionString);
       //const user1 = await identityClient.createUserAndToken(["voip"]);
@@ -258,6 +269,10 @@ class Login extends React.Component {
         },
         {
           id: this.users[1].user,
+          role: "Attendee",
+        },
+        {
+          id: this.users[2].user,
           role: "Attendee",
         },
       ];
@@ -289,6 +304,29 @@ class Login extends React.Component {
     } catch (e) {
       console.error("Failed to init a room", e);
     }
+  }
+
+  async addUsersToRoom() {
+    this.initRoomClient();
+    const participants = [
+      {
+        id: this.users[0].user,
+        role: "Presenter",
+      },
+      {
+        id: this.users[1].user,
+        role: "Attendee",
+      },
+      {
+        id: this.users[2].user,
+        role: "Attendee",
+      },
+    ];
+    await this.roomsClient.addOrUpdateParticipants(
+      "99537831320953925",
+      participants
+    );
+    console.log("users added to room");
   }
 
   async handlePushNotification(event) {
@@ -558,17 +596,25 @@ class Login extends React.Component {
                   </div>
                 </div>
                 {/*
-            <div className="ms-Grid-row">
-              <div className="ms-Grid-col ms-sm12 ms-md12 ms-lg12">
-                <PrimaryButton
-                  className="primary-button mt-4"
-                  label="Create a room"
-                  onClick={() => this.initRooms()}
-                >
-                  Create room
-                </PrimaryButton>
-              </div>
-                </div>*/}
+                  <div className="ms-Grid-row">
+                    <div className="ms-Grid-col ms-sm12 ms-md12 ms-lg12">
+                      <PrimaryButton
+                        className="primary-button mt-4"
+                        label="Create a room"
+                        onClick={() => this.initRooms()}
+                      >
+                        Create room
+                      </PrimaryButton>
+                      <PrimaryButton
+                        className="primary-button mt-4"
+                        label="Update room users"
+                        onClick={() => this.addUsersToRoom()}
+                      >
+                        Update room users
+                      </PrimaryButton>
+                    </div>
+                  </div>
+                    */}
               </div>
             )}
           </div>

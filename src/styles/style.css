@@ -7,10 +7,70 @@
   z-index: 2;
 }
 
+.callheader {
+  padding: 0px;
+}
+
 .header_content {
   display: flex;
   justify-content: center;
   align-items: center;
+}
+
+.call_header_content {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  background-color: #0175be;
+}
+
+.call_header_content .primary-button {
+  margin: 0px;
+  padding: 0px;
+  min-width: 40px;
+  width: 40px;
+}
+
+.call_header_content .ms-Persona-details .primaryText-211 {
+  font-size: 16px;
+  color: white !important;
+}
+
+.call_header_content .ms-Persona-details .secondaryText-212 {
+  font-size: 14px;
+  color: white !important;
+}
+
+.call_header_content .ms-Persona-details.details-210 {
+  padding-left: 0px;
+}
+
+.call_header_content .ms-Persona-image .image-228 {
+  width: 70%;
+  height: 70%;
+  border-radius: 50%;
+}
+
+.call_header_content .ms-Persona-details .imageArea-218 {
+  width: 40px;
+}
+
+.call_header_content .ms-Persona-image .image-227 {
+  width: 40px;
+  margin: 0px;
+}
+
+.call-card {
+  height: calc(100vh - 60px);
+  background-image: linear-gradient(#0a0c10, #2d3a4a, 90%, #0a0c10);
+}
+
+.call-icons {
+  position: fixed;
+  width: 100%;
+  bottom: 0;
+  padding-bottom: 10px;
+  height: 60px;
 }
 
 .logo {
@@ -22,7 +82,22 @@
   cursor: pointer;
 }
 
+.small-preview {
+  position: absolute;
+  bottom: 40px;
+  top: 600px;
+  width: 100px;
+  height: 100px;
+  right: 10px;
+  z-index: 4;
+}
+
 /* Chat */
+
+.card.chat-card {
+  margin-top: 60px;
+  height: calc(100vh - 60px);
+}
 
 .ms-Stack.css-245 {
   position: fixed;
