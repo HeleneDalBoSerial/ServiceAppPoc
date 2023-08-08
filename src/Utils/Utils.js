@@ -13,19 +13,19 @@ export const utils = {
   getAppServiceUrl: () => {
     return window.location.origin;
   },
-  getCommunicationUserToken: async (communicationUserId) => {
+  getCommunicationUserToken: async (login) => {
     let response = await axios({
       url: "getCommunicationUserToken",
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      data: communicationUserId
-        ? JSON.stringify({ communicationUserId })
-        : undefined,
+      data: login ? JSON.stringify({ login }) : undefined,
     });
     if (response.status === 200) {
       return response.data;
+    } else if (response.status === 403) {
+      throw new Error("Wrong login/password");
     }
     throw new Error("Failed to get ACS User Access token");
   },

@@ -94,6 +94,7 @@ class Login extends React.Component {
       },
       isTeamsUser: false,
       redirect: false,
+      login: null,
     };
   }
 
@@ -213,21 +214,20 @@ class Login extends React.Component {
     try {
       this.setState({ isTeamsUser: false });
       this.setState({ showSpinner: true });
-      if (!this.state.token && !this.state.communicationUserId) {
-        this.userDetailsResponse = await utils.getCommunicationUserToken();
-      } else if (this.state.token && this.state.communicationUserId) {
+      if (this.state.token && this.state.communicationUserId) {
         this.userDetailsResponse =
           await utils.getOneSignalRegistrationTokenForCommunicationUserToken(
             this.state.token,
             this.state.communicationUserId
           );
-      } else if (!this.state.token && this.state.communicationUserId) {
+      } else if (!this.state.token && this.state.login) {
         this.userDetailsResponse = await utils.getCommunicationUserToken(
-          this.state.communicationUserId
+          this.state.login
         );
-      } else if (this.state.token && !this.state.communicationUserId) {
+        this.state.communicationUserId = this.userDetailsResponse.userId;
+      } else if (this.state.token && !this.state.login) {
         throw new Error(
-          "You must specify the associated ACS identity for the provided ACS communication user token"
+          "You must specify the login associated with the ACS identity for the provided ACS communication user token"
         );
       }
       if (this.state.initializedOneSignal) {
@@ -575,13 +575,24 @@ class Login extends React.Component {
                 </div>
                 <div className="ms-Grid-row">
                   <div className="ms-Grid-col ms-sm12 ms-md12 ms-lg12">
-                    <TextField
+                    {/*<TextField
                       placeholder="8:acs:<ACS Resource ID>_<guid>"
                       label="ACS Identity"
                       onChange={(e) => {
                         this.state.communicationUserId = e.target.value;
                       }}
+                    />*/}
+                    <TextField
+                      label="Email"
+                      onChange={(e) => {
+                        this.state.login = e.target.value;
+                      }}
                     />
+                  </div>
+                </div>
+                <div className="ms-Grid-row">
+                  <div className="ms-Grid-col ms-sm12 ms-md12 ms-lg12">
+                    <TextField label="Password" type="password" />
                   </div>
                 </div>
                 <div className="ms-Grid-row">

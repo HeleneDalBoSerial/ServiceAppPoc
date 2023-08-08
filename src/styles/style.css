@@ -31,33 +31,25 @@
   width: 40px;
 }
 
-.call_header_content .ms-Persona-details .primaryText-211 {
+.call_header_content .ms-Persona-details .ms-Persona-primaryText {
   font-size: 16px;
   color: white !important;
 }
 
-.call_header_content .ms-Persona-details .secondaryText-212 {
+.call_header_content .ms-Persona-details .ms-Persona-secondaryText {
   font-size: 14px;
   color: white !important;
 }
 
-.call_header_content .ms-Persona-details.details-210 {
+.call_header_content .ms-Persona-details {
   padding-left: 0px;
 }
 
-.call_header_content .ms-Persona-image .image-228 {
-  width: 70%;
-  height: 70%;
+.call_header_content .ms-Persona-image {
+  width: 70% !important;
+  height: 70% !important;
   border-radius: 50%;
-}
-
-.call_header_content .ms-Persona-details .imageArea-218 {
-  width: 40px;
-}
-
-.call_header_content .ms-Persona-image .image-227 {
-  width: 40px;
-  margin: 0px;
+  margin-top: 7px;
 }
 
 .call-card {
@@ -92,11 +84,17 @@
   z-index: 4;
 }
 
+.video-grid-row .video-title {
+  background-color: rgb(240, 240, 240), 0.5;
+  font-weight: bold;
+}
+
 /* Chat */
 
 .card.chat-card {
   margin-top: 60px;
   height: calc(100vh - 60px);
+  padding: 0px;
 }
 
 .ms-Stack.css-245 {
@@ -107,4 +105,9 @@
 
 .ms-FocusZone.ui-chat {
   height: calc(100vh - 180px);
+}
+
+.css-241 {
+  padding-left: 5px;
+  padding-right: 5px;
 }

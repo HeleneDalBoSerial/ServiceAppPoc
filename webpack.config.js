@@ -157,12 +157,27 @@ module.exports = {
     before: function (app) {
       app.use(bodyParser.json());
       app.post("/getCommunicationUserToken", async (req, res) => {
+        const users = new Map([
+          [
+            "helene@test.com",
+            "8:acs:dd0b5bea-6374-415a-a991-c5e791770a22_0000001a-3646-6502-9eaf-473a0d00e08d",
+          ],
+          [
+            "guillaume@test.com",
+            "8:acs:dd0b5bea-6374-415a-a991-c5e791770a22_0000001a-3646-cdd4-9eaf-473a0d00e09e",
+          ],
+          [
+            "janedoe@test.com",
+            "8:acs:dd0b5bea-6374-415a-a991-c5e791770a22_0000001a-6f06-2685-f4f3-ad3a0d002036",
+          ],
+        ]);
         try {
-          const communicationUserId = req.body.communicationUserId;
+          const login = req.body.login;
+          const communicationUserId = users.get(login);
           let CommunicationUserIdentifier;
           if (!communicationUserId) {
-            CommunicationUserIdentifier =
-              await communicationIdentityClient.createUser();
+            // CommunicationUserIdentifier = await communicationIdentityClient.createUser();
+            throw "Wrong login";
           } else {
             CommunicationUserIdentifier = {
               communicationUserId: communicationUserId,
@@ -188,8 +203,12 @@ module.exports = {
             userId: CommunicationUserIdentifier,
           });
         } catch (e) {
+          if (e === "Wrong login") {
+            res.sendStatus(403);
+          } else {
+            res.sendStatus(500);
+          }
           console.log("Error setting registration token", e);
-          res.sendStatus(500);
         }
       });
       app.post(
