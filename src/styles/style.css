@@ -85,8 +85,20 @@
 }
 
 .video-grid-row .video-title {
-  background-color: rgb(240, 240, 240), 0.5;
+  background-color: rgb(240, 240, 240, 0.5);
   font-weight: bold;
+}
+
+.local-preview-block {
+  display: flex;
+  height: calc(100vh - 170px);
+  flex-direction: column;
+  align-items: center;
+}
+
+.user-image-default {
+  max-height: 180px;
+  width: 50%;
 }
 
 /* Chat */
@@ -110,4 +122,11 @@
 .css-241 {
   padding-left: 5px;
   padding-right: 5px;
+}
+
+/* global */
+
+.flex-center {
+  display: flex;
+  justify-content: center;
 }

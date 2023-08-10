@@ -817,33 +817,39 @@ export default class CallCard extends React.Component {
             />
           )}
         </div>
-        {this.state.videoOn && this.state.canOnVideo && (
-          <div className="mt-5">
-            {this.state.allRemoteParticipantStreams?.length === 0 && (
-              <div className="ms-Grid-row">
-                <h3
-                  style={{
-                    color: "white",
-                    textAlign: "center",
-                  }}
-                >
-                  You are the only one in the meeting
-                </h3>
-              </div>
-            )}
-            <div
-              className={`ms-Grid-row ${
-                this.state.allRemoteParticipantStreams?.length > 0
-                  ? "small-preview"
-                  : ""
-              }`}
-            >
-              <div className="ms-Grid-col ms-sm12 ms-md4 ms-lg4">
+        <div className="mt-5">
+          <div
+            className={`ms-Grid-row ${
+              this.state.allRemoteParticipantStreams?.length > 0
+                ? "small-preview"
+                : ""
+            }`}
+          >
+            <div className="ms-Grid-col ms-sm12 ms-md4 ms-lg4 local-preview-block">
+              {this.state.videoOn && this.state.canOnVideo ? (
                 <LocalVideoPreviewCard stream={this.localVideoStream} />
-              </div>
+              ) : (
+                <img
+                  src={`../assets/images/user.png`}
+                  className="user-image-default"
+                />
+              )}
+              {this.state.allRemoteParticipantStreams?.length === 0 && (
+                <div className="ms-Grid-row">
+                  <h3
+                    style={{
+                      color: "white",
+                      textAlign: "center",
+                      marginTop: "150px",
+                    }}
+                  >
+                    You are the only one in the meeting
+                  </h3>
+                </div>
+              )}
             </div>
           </div>
-        )}
+        </div>
         <div className="ms-Grid-row call-icons">
           <div className="text-center">
             <span
